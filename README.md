@@ -14,14 +14,16 @@ BME680 Sensor (Temperature/Humidity/Barometric Pressure/VOC Gas Detection) - SPI
 MH-Z19C CO2 Sensor - TX/RX\
 [by EC Buying](https://www.amazon.com/EC-Buying-Monitoring-Concentration-Detection/dp/B0CRKH5XVX)
 
-ESP32 Cheap Yellow Display ([more info](https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display))\
+ESP32 Cheap Yellow Display ([more info](https://www.lcdwiki.com/2.8inch_ESP32-32E_Display))\
 [by Hosyond](https://www.amazon.com/gp/product/B0D92C9MMH)
 
 3.7V LiPo Battery\
-[find here](https://www.amazon.com/gp/product/B07BTWK13N)
+[by MakerHawk](https://www.amazon.com/gp/aw/d/B0D7MC714N)
 
 #### Ideas
 * CYD has a microsd card slot -> maybe create an offline data collection mode when a wifi network is unavailible, then have an on-screen option to upload data to the cloud
+* Use CYD touch screen to set modes of data collection - 24-hour ambient, single session of specified duration (for class section)
+* CYD touch screen has numpad to enter a room number for COE
 
 #### Info
 * CYD has battery port which also charges the battery when the USB-C port is powered.
