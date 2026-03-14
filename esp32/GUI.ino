@@ -60,6 +60,9 @@ const short int CO2_plot_rate = 1000; // ms
 static short int CO2_min = 400; // ppm
 static short int CO2_max = 5000; // ppm
 
+// label for the text that display CO2 ppm when selecting a point on the chart
+static lv_obj_t* cursor_point_value_label; 
+
 static lv_style_t style_radio;
 static lv_style_t style_radio_chk;
 
@@ -105,6 +108,7 @@ void touchscreen_read(lv_indev_t * indev, lv_indev_data_t * data) {
 
     // Get Touchscreen points
     TS_Point p = touchscreen.getPoint();
+
     // Calibrate Touchscreen points with map function to the correct width and height
     x = map(p.x, 200, 3700, 1, SCREEN_WIDTH);
     y = map(p.y, 240, 3800, 1, SCREEN_HEIGHT);
@@ -234,7 +238,7 @@ void lv_switch(lv_obj_t* screen)
 }
 
 // Called when the Start button is pressed
-static void button_event_handler(lv_event_t * e)
+static void start_button_event(lv_event_t * e)
 {
   lv_event_code_t code = lv_event_get_code(e);
   if(code == LV_EVENT_CLICKED) {
@@ -246,13 +250,13 @@ static void button_event_handler(lv_event_t * e)
 }
 
 // Creates the start button
-void lv_button(lv_obj_t* screen)
+void lv_start_button(lv_obj_t* screen)
 {
 
   // Button, located to the right of toggle switch
   lv_obj_t * label;
   lv_obj_t * btn1 = lv_button_create(screen);
-  lv_obj_add_event_cb(btn1, button_event_handler, LV_EVENT_ALL, NULL);
+  lv_obj_add_event_cb(btn1, start_button_event, LV_EVENT_ALL, NULL);
   lv_obj_align(btn1, LV_ALIGN_TOP_LEFT, 245, 85);
   lv_obj_remove_flag(btn1, LV_OBJ_FLAG_PRESS_LOCK);
   
@@ -263,7 +267,7 @@ void lv_button(lv_obj_t* screen)
 
 }
 
-// Called when the user clicks on a points on the chart
+// Called when the user clicks on a point on the chart
 static void value_changed_event_cb(lv_event_t * e)
 {
   uint32_t last_id;
@@ -273,15 +277,25 @@ static void value_changed_event_cb(lv_event_t * e)
 
   if(last_id != LV_CHART_POINT_NONE) {
 
-      lv_chart_set_cursor_point(obj, cursor, NULL, last_id);
+    lv_chart_set_cursor_point(obj, cursor, NULL, last_id);
 
-      /* Get the value from the series */
-      int32_t value = ser->y_points[last_id];
+    // Get the value from the series
+    int32_t value = ser->y_points[last_id];
 
-      Serial.print("Point index: ");
-      Serial.print(last_id);
-      Serial.print("  CO2 value: ");
-      Serial.println(value);
+    Serial.print("Point index: ");
+    Serial.print(last_id);
+    Serial.print("  CO2 value: ");
+    Serial.println(value);
+
+    // Get pixel coordinates of the point
+    lv_point_t p;
+    lv_chart_get_point_pos_by_id(obj, ser, last_id, &p);
+
+    // Update label text
+    lv_label_set_text_fmt(cursor_point_value_label, "%d", value);
+
+    // Move label 20px above the cursor
+    lv_obj_set_pos(cursor_point_value_label,lv_obj_get_x(obj) + p.x - lv_obj_get_width(cursor_point_value_label)/2,lv_obj_get_y(obj) + p.y - 20);
   }
 }
 
@@ -347,6 +361,16 @@ void lv_chart(lv_obj_t* screen)
 
 }
 
+// Creates the label for the number that goes above the selected point on the chart
+void create_cursor_value_label(lv_obj_t* screen) {
+  cursor_point_value_label = lv_label_create(screen);
+  lv_label_set_text(cursor_point_value_label, "");          
+  lv_obj_add_flag(cursor_point_value_label, LV_OBJ_FLAG_IGNORE_LAYOUT);
+  lv_color_t light_grey = lv_palette_lighten(LV_PALETTE_GREY, 4); // get a lighter grey color 
+  lv_obj_set_style_bg_color(cursor_point_value_label, light_grey, 0);
+  lv_obj_set_style_bg_opa(cursor_point_value_label, LV_OPA_COVER, 0); // solid background
+}
+
 // Called when the user selects a radio button option
 static void event_radio_button(lv_event_t * e)
 {
@@ -403,6 +427,34 @@ void lv_radio_buttons(lv_obj_t* screen)
   lv_obj_align_to(label, cont, LV_ALIGN_OUT_TOP_MID, -2, 0);
 }
 
+// Called when the Stop button is pressed
+static void stop_button_event(lv_event_t * e)
+{
+  lv_event_code_t code = lv_event_get_code(e);
+  if(code == LV_EVENT_CLICKED) {
+
+    lv_scr_load(start_screen);
+  }
+}
+
+// Creates the stop button
+void lv_stop_button(lv_obj_t* screen)
+{
+
+  // Button, located to the right of toggle switch
+  lv_obj_t * label;
+  lv_obj_t * btn2 = lv_button_create(screen);
+  lv_obj_add_event_cb(btn2, stop_button_event, LV_EVENT_ALL, NULL);
+  lv_obj_align(btn2, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
+  lv_obj_remove_flag(btn2, LV_OBJ_FLAG_PRESS_LOCK);
+  
+  // Text inside the button
+  label = lv_label_create(btn2);
+  lv_label_set_text(label, "Stop");
+  lv_obj_center(label);
+
+}
+
 // Creates the GUI elements for the start and recording screens
 void lv_create_main_gui(void) {
 
@@ -416,11 +468,13 @@ void lv_create_main_gui(void) {
   lv_top_text(start_screen);
   lv_keyboard(start_screen);
   lv_switch(start_screen);
-  lv_button(start_screen);
+  lv_start_button(start_screen);
 
   // call functions to create recording screen
   lv_chart(recording_screen);
   lv_radio_buttons(recording_screen);
+  lv_stop_button(recording_screen);
+  create_cursor_value_label(recording_screen);
 
   // set the start screen as the active scren
   lv_scr_load(start_screen);
