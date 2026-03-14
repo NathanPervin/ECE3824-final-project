@@ -57,7 +57,11 @@ use the CYD's microSD card slot to store text files with each line containing JS
 | 5V | Vin for CO2 Sensor |
 | GND | GND for CO2 Sensor |
 
+microSD Card should be formatted as FAT32.
+
 #### Tutorials 
 https://randomnerdtutorials.com/lvgl-cheap-yellow-display-esp32-2432s028r
 
+SD card example:
+https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display/blob/main/Examples/Basics/3-SDCardTest/3-SDCardTest.ino
 
