@@ -65,3 +65,4 @@ https://randomnerdtutorials.com/lvgl-cheap-yellow-display-esp32-2432s028r
 SD card example:
 https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display/blob/main/Examples/Basics/3-SDCardTest/3-SDCardTest.ino
 
+[LVGL Widgets Docs](https://docs.lvgl.io/master/widgets/)
