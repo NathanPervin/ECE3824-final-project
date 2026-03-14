@@ -34,6 +34,9 @@ ESP32 Cheap Yellow Display ([more info](https://www.lcdwiki.com/2.8inch_ESP32-32
 * variable data upload rate to save power
 * calibrate CO2 sensor by pulling IO35 low (requires hardware switching of the wire)
 
+#### Features
+* Screen automatically sleeps after 60 seconds of inactivity
+
 #### Info
 * CYD has battery port which also charges the battery when the USB-C port is powered.
 
@@ -66,3 +69,8 @@ SD card example:
 https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display/blob/main/Examples/Basics/3-SDCardTest/3-SDCardTest.ino
 
 [LVGL Widgets Docs](https://docs.lvgl.io/master/widgets/)
+
+#### TODO
+* display recording duration if session mode was selected
+* display the 4 other vars using labels
+* create stop button (logs whatever data is cached and goes back to start screen)
