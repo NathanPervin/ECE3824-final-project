@@ -1,7 +1,7 @@
 # Air Quality Monitor
 
 ### Description
-ESP-32 device that monitors the air quality and sends the infomation to a database on the cloud. A website will display the data.
+ESP-32 device that monitors the air quality and sends the infomation to a database in the cloud. A website will display the data.
 
 ### Impact
 [Studies](https://www.sciencedirect.com/science/article/pii/S036013232300358X) have shown that short-term exposure to high levels of CO2 can reduce cognitive performance and negatively impact learning. Therefore, it is important to be ensure that CO2 levels remain low in an academic setting.
@@ -32,6 +32,7 @@ ESP32 Cheap Yellow Display ([more info](https://www.lcdwiki.com/2.8inch_ESP32-32
 * CYD touch screen numpad to enter a room number for COE
 * Screen should display the current values and give a air quality score.
 * variable data upload rate to save power
+* calibrate CO2 sensor by pulling IO35 low (requires hardware switching of the wire)
 
 #### Info
 * CYD has battery port which also charges the battery when the USB-C port is powered.
@@ -45,6 +46,18 @@ ESP32 Cheap Yellow Display ([more info](https://www.lcdwiki.com/2.8inch_ESP32-32
 #### Data Collection and Upload
 use the CYD's microSD card slot to store text files with each line containing JSON Lines. The timestamp will be updated after each data POST request to keep the timestamps accurate over long periods of time. Data will be in the following format:
 ```JSON
-{"unix_timestamp":1678886400,"temperature":22.5, ...}
-{"unix_timestamp":1678886401,"temperature":23, ...}
+{"mode":"ambient","building":"COE","room_number":306,"unix_timestamp":1678886400,"temperature":22.5, ...}
 ```
+
+#### Pinout
+
+| Pin | Use |
+|-----|-----|
+| IO35 | PWM for CO2 Sensor |
+| 5V | Vin for CO2 Sensor |
+| GND | GND for CO2 Sensor |
+
+#### Tutorials 
+https://randomnerdtutorials.com/lvgl-cheap-yellow-display-esp32-2432s028r
+
+
