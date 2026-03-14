@@ -13,3 +13,6 @@ wheels/
 
 # OS generated files #
 .DS_Store
+
+# don't include the secrets file
+secrets.h
