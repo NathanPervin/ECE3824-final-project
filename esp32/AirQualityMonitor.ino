@@ -2,10 +2,19 @@
 // Configuration files and base code from: https://randomnerdtutorials.com/lvgl-cheap-yellow-display-esp32-2432s028r
 // LVGL documentation: https://docs.lvgl.io/
 
+// includes for GUI
 #include <lvgl.h>
 #include <TFT_eSPI.h>
 #include <XPT2046_Touchscreen.h>
 
+// includes for WIFI
+#include <WiFi.h>
+#include <time.h>
+#include <secrets.h>
+
+/*
+    GUI Variables
+*/
 // Touchscreen pins
 #define XPT2046_IRQ 36   // T_IRQ
 #define XPT2046_MOSI 32  // T_DIN
@@ -82,6 +91,25 @@ TimeScale current_time_scale = t_60s;
 const int screen_sleep_after_time = 300000; // ms, 5 mins
 
 /*
+//  CO2 Sensor Variables
+*/
+#define CO2_PWM_PIN 35
+
+volatile unsigned long previous_low_start = 0;  // us
+volatile unsigned long previous_high_start = 0; //us
+volatile unsigned long TL = 0; // us
+volatile unsigned long TH = 0; // us
+
+const short int CO2_log_rate = 1000; // ms
+
+/*
+    WIFI Variables
+*/
+const char* ntpServer = "pool.ntp.org";
+const long gmtOffset_sec = -18000;   // EST
+const int daylightOffset_sec = 3600;  // 1 hour for daylight saving
+
+/*
     System Variables
 */
 // buffers that will store the last 60 points
@@ -108,17 +136,8 @@ float count_1440s = 0;
 const short int ppm_threshold = 2000; // CO2 ppm above this will make the plot line red
 static float CO2_value = 0;
 
-/*
-//  CO2 Sensor Variables
-*/
-#define CO2_PWM_PIN 35
-
-volatile unsigned long previous_low_start = 0;  // us
-volatile unsigned long previous_high_start = 0; //us
-volatile unsigned long TL = 0; // us
-volatile unsigned long TH = 0; // us
-
-const short int CO2_log_rate = 1000; // ms
+bool on_start_screen = false;
+bool on_recording_screen = false;
 
 /*
     CO2 Sensor Functions
@@ -143,6 +162,55 @@ void ARDUINO_ISR_ATTR read_PWM() {
     TH = now - previous_high_start;
     previous_low_start = now;
   }
+}
+
+/*
+    WIFI Functions
+*/
+void initialize_wifi() {
+  Serial.printf("Connecting to Wi-Fi %s ...\n", WIFI_SSID);
+
+  // SSID and password must be inside of secrets.h
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+  // try to connect to the wifi
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+    delay(500);
+    Serial.print(".");
+    attempts++;
+  }
+
+  if(WiFi.status() != WL_CONNECTED){
+    Serial.println("\nFailed to connect to Wi-Fi");
+    return;
+  }
+
+  Serial.println("\nWi-Fi connected!");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+
+  // Initialize NTP
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+}
+
+int get_unix_time() {
+
+  Serial.println("Getting time from NTP server...");
+  time_t now = time(nullptr);
+  int retry = 0;
+  const int retry_count = 10;
+
+  // ensure unix time is valid, otherwise try again
+  while (now < 1000000000 && retry < retry_count) { 
+    delay(500);
+    Serial.print(".");
+    now = time(nullptr);
+    retry++;
+  }
+
+  if(now < 1000000000) return 0;
+  return now;
 }
 
 /*
@@ -319,8 +387,7 @@ void lv_top_text(lv_obj_t* screen) {
 
 // Creates the keyboard when a text area is selected
 // Allows the user to enter a building and room number
-void lv_keyboard(lv_obj_t* screen)
-{
+void lv_keyboard(lv_obj_t* screen) {
   // Create a keyboard, automatically displays when a text box is clicked on
   lv_obj_t * kb = lv_keyboard_create(screen);
 
@@ -360,8 +427,7 @@ void lv_keyboard(lv_obj_t* screen)
 
 // Called when the Ambient/Session switch is toggled,
 // used for specifying the mode
-static void switch_event_handler(lv_event_t * e)
-{
+static void switch_event_handler(lv_event_t * e) {
   lv_event_code_t code = lv_event_get_code(e);
   lv_obj_t * obj = lv_event_get_target_obj(e); 
   LV_UNUSED(obj);
@@ -371,11 +437,9 @@ static void switch_event_handler(lv_event_t * e)
     is_ambient = !(lv_obj_has_state(obj, LV_STATE_CHECKED)); 
   }
 }
-
 // Creates the ambient/session toggle switch
 // located on the left, below the text areas
-void lv_switch(lv_obj_t* screen)
-{
+void lv_switch(lv_obj_t* screen) {
 
   // Ambient Text (to the left of the switch)
   lv_obj_t * ambient_text_label = lv_label_create(screen);
@@ -403,22 +467,21 @@ void lv_switch(lv_obj_t* screen)
 }
 
 // Called when the Start button is pressed
-static void start_button_event(lv_event_t * e)
-{
+static void start_button_event(lv_event_t * e) {
   lv_event_code_t code = lv_event_get_code(e);
   if(code == LV_EVENT_CLICKED) {
 
     // if the location text is valid, advance to the recording screen
     if (!get_location()) return;
     lv_scr_load(recording_screen);
-
+    on_start_screen = false;
+    on_recording_screen = true;
     clear_buffers();
   }
 }
 
 // Creates the start button
-void lv_start_button(lv_obj_t* screen)
-{
+void lv_start_button(lv_obj_t* screen) {
 
   // Button, located to the right of toggle switch
   lv_obj_t * label;
@@ -435,8 +498,7 @@ void lv_start_button(lv_obj_t* screen)
 }
 
 // Creates the chart for CO2 values
-void lv_chart(lv_obj_t* screen)
-{
+void lv_chart(lv_obj_t* screen) {
   chart = lv_chart_create(screen);
   lv_obj_set_size(chart, 200, 140); // 200x140 pixels
   lv_obj_align(chart, LV_ALIGN_CENTER, 60, -30);
@@ -488,8 +550,7 @@ void lv_chart(lv_obj_t* screen)
 }
 
 // Called when the user selects a radio button option
-static void event_radio_button(lv_event_t * e)
-{
+static void event_radio_button(lv_event_t * e) {
   lv_obj_t * obj = lv_event_get_target_obj(e);
 
   // check that the checkbox is checked (radio button is selected)
@@ -519,8 +580,7 @@ static void event_radio_button(lv_event_t * e)
 }
 
 // Creates checkboxes as radio buttons for the time scale selection
-void lv_radio_buttons(lv_obj_t* screen)
-{
+void lv_radio_buttons(lv_obj_t* screen) {
   lv_style_init(&style_radio);
   lv_style_set_radius(&style_radio, LV_RADIUS_CIRCLE);
   lv_style_init(&style_radio_chk);
@@ -559,18 +619,18 @@ void lv_radio_buttons(lv_obj_t* screen)
 }
 
 // Called when the Stop button is pressed
-static void stop_button_event(lv_event_t * e)
-{
+static void stop_button_event(lv_event_t * e) {
   lv_event_code_t code = lv_event_get_code(e);
   if(code == LV_EVENT_CLICKED) {
 
     lv_scr_load(start_screen);
+    on_start_screen = true;
+    on_recording_screen = false;
   }
 }
 
 // Creates the stop button
-void lv_stop_button(lv_obj_t* screen)
-{
+void lv_stop_button(lv_obj_t* screen) {
 
   // Button, located to the right of toggle switch
   lv_obj_t * label;
@@ -606,6 +666,7 @@ void lv_create_main_gui(void) {
 
   // set the start screen as the active scren
   lv_scr_load(start_screen);
+  on_start_screen = true;
 }
 
 // Called from load_buffers, when new value in inserted into a buffer 
@@ -651,6 +712,10 @@ void setup() {
   pinMode(CO2_PWM_PIN, INPUT);
   attachInterrupt(CO2_PWM_PIN, read_PWM, CHANGE);
   
+  // Start WIFI connection
+  initialize_wifi();
+  Serial.print(get_unix_time());
+
   // Start LVGL
   lv_init();
 
