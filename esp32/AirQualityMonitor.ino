@@ -49,7 +49,6 @@ char room_text[MAX_INPUT_TEXT_LENGTH];
 
 static lv_obj_t * chart;
 static lv_chart_series_t * ser;
-static lv_chart_cursor_t * cursor;
 
 // the width of the x axis, in seconds 
 static short int time_scale = 60; 
@@ -59,9 +58,6 @@ const short int number_plot_points = 60;
 const short int CO2_plot_rate = 1000; // ms
 static short int CO2_min = 400; // ppm
 static short int CO2_max = 5000; // ppm
-
-// label for the text that display CO2 ppm when selecting a point on the chart
-static lv_obj_t* cursor_point_value_label; 
 
 static lv_style_t style_radio;
 static lv_style_t style_radio_chk;
@@ -109,6 +105,9 @@ float count_60s = 0;
 float sum_last_1440s_CO2 = 0;
 float count_1440s = 0;
 
+const short int ppm_threshold = 2000; // CO2 ppm above this will make the plot line red
+static float CO2_value = 0;
+
 /*
 //  CO2 Sensor Variables
 */
@@ -149,9 +148,9 @@ void ARDUINO_ISR_ATTR read_PWM() {
 /*
     System Functions
 */
-
 // called each time a CO2 value is collected (every 1 second),
-// 
+// values get averaged and stored in all buffers to allow for
+// past data to be displayed for new timescale 
 void load_buffers(float CO2_ppm) {
 
   // load buffer, get next index
@@ -228,17 +227,17 @@ void clear_buffers() {
     buffer_24hrs[i] = LV_CHART_POINT_NONE;
   }
 
-  int i_60secs = 0;
-  int i_5mins = 0;
-  int i_1hr = 0;
-  int i_24hrs = 0;
+  i_60secs = 0;
+  i_5mins = 0;
+  i_1hr = 0;
+  i_24hrs = 0;
 
-  float sum_last_5s_CO2 = 0;
-  float count_5s = 0;
-  float sum_last_60s_CO2 = 0;
-  float count_60s = 0;
-  float sum_last_1440s_CO2 = 0;
-  float count_1440s = 0;
+  sum_last_5s_CO2 = 0;
+  count_5s = 0;
+  sum_last_60s_CO2 = 0;
+  count_60s = 0;
+  sum_last_1440s_CO2 = 0;
+  count_1440s = 0;
 
 }
 
@@ -435,38 +434,6 @@ void lv_start_button(lv_obj_t* screen)
 
 }
 
-// Called when the user clicks on a point on the chart
-static void value_changed_event_cb(lv_event_t * e)
-{
-  uint32_t last_id;
-  lv_obj_t * obj = lv_event_get_target_obj(e);
-
-  last_id = lv_chart_get_pressed_point(obj);
-
-  if(last_id != LV_CHART_POINT_NONE) {
-
-    lv_chart_set_cursor_point(obj, cursor, NULL, last_id);
-
-    // Get the value from the series
-    int32_t value = ser->y_points[last_id];
-
-    Serial.print("Point index: ");
-    Serial.print(last_id);
-    Serial.print("  CO2 value: ");
-    Serial.println(value);
-
-    // Get pixel coordinates of the point
-    lv_point_t p;
-    lv_chart_get_point_pos_by_id(obj, ser, last_id, &p);
-
-    // Update label text
-    lv_label_set_text_fmt(cursor_point_value_label, "%d", value);
-
-    // Move label 20px above the cursor
-    lv_obj_set_pos(cursor_point_value_label,lv_obj_get_x(obj) + p.x - lv_obj_get_width(cursor_point_value_label)/2,lv_obj_get_y(obj) + p.y - 20);
-  }
-}
-
 // Creates the chart for CO2 values
 void lv_chart(lv_obj_t* screen)
 {
@@ -474,10 +441,7 @@ void lv_chart(lv_obj_t* screen)
   lv_obj_set_size(chart, 200, 140); // 200x140 pixels
   lv_obj_align(chart, LV_ALIGN_CENTER, 60, -30);
 
-  lv_obj_add_event_cb(chart, value_changed_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
   lv_obj_refresh_ext_draw_size(chart);
-
-  cursor = lv_chart_add_cursor(chart, lv_palette_main(LV_PALETTE_BLUE), (lv_dir_t)(LV_DIR_LEFT | LV_DIR_BOTTOM));
 
   ser = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_RED), LV_CHART_AXIS_PRIMARY_Y);
   lv_chart_set_axis_range(chart, LV_CHART_AXIS_PRIMARY_Y, CO2_min, CO2_max);
@@ -523,16 +487,6 @@ void lv_chart(lv_obj_t* screen)
 
 }
 
-// Creates the label for the number that goes above the selected point on the chart
-void create_cursor_value_label(lv_obj_t* screen) {
-  cursor_point_value_label = lv_label_create(screen);
-  lv_label_set_text(cursor_point_value_label, "");          
-  lv_obj_add_flag(cursor_point_value_label, LV_OBJ_FLAG_IGNORE_LAYOUT);
-  lv_color_t light_grey = lv_palette_lighten(LV_PALETTE_GREY, 4); // get a lighter grey color 
-  lv_obj_set_style_bg_color(cursor_point_value_label, light_grey, 0);
-  lv_obj_set_style_bg_opa(cursor_point_value_label, LV_OPA_COVER, 0); // solid background
-}
-
 // Called when the user selects a radio button option
 static void event_radio_button(lv_event_t * e)
 {
@@ -562,7 +516,6 @@ static void event_radio_button(lv_event_t * e)
   else {
     Serial.print("Unable to resolve time scale from radio box selection!");
   }
-
 }
 
 // Creates checkboxes as radio buttons for the time scale selection
@@ -650,15 +603,15 @@ void lv_create_main_gui(void) {
   lv_chart(recording_screen);
   lv_radio_buttons(recording_screen);
   lv_stop_button(recording_screen);
-  create_cursor_value_label(recording_screen);
 
   // set the start screen as the active scren
   lv_scr_load(start_screen);
 }
 
-// Called from load_buffers, when new value in inserted into a buffer
+// Called from load_buffers, when new value in inserted into a buffer 
 void update_plot() {
 
+  // reload entire buffer when plot is updated
   if (current_time_scale == t_60s) {
     lv_chart_set_series_ext_y_array(chart, ser, buffer_60secs);
     lv_chart_set_x_start_point(chart, ser, i_60secs);
@@ -677,7 +630,17 @@ void update_plot() {
   }
   else {
     Serial.print("Invalid current_time_scale state!");
+    return;
   }
+
+  // turn the plot red if the CO2 ppm goes above the threshold or green if its below
+  if (CO2_value > ppm_threshold) {
+    lv_chart_set_series_color(chart, ser, lv_palette_main(LV_PALETTE_RED));
+  } 
+  else {
+      lv_chart_set_series_color(chart, ser, lv_palette_main(LV_PALETTE_GREEN));
+  }
+
   lv_chart_refresh(chart);
 }
 
@@ -738,10 +701,10 @@ void loop() {
       // converted to microseconds
       float ppm = 5000.0 * (TH - 2000) / (TH + TL - 4000);
       ppm = constrain(ppm, 400, 5000); // the sensor's range is 400-5000 ppm
-      Serial.print("CO2: ");
-      Serial.print(ppm);
-      Serial.println(" ppm");
-
+      // Serial.print("CO2: ");
+      // Serial.print(ppm);
+      // Serial.println(" ppm");
+      CO2_value = ppm;
       load_buffers(ppm);
     } else {
       Serial.println("Invalid PWM Received");
