@@ -78,7 +78,8 @@ Modified [ghfisanotti's CYD Case on Thingiverse](https://www.thingiverse.com/thi
 
 The 5-pin female pin header is secured by melting the plastic around it with a soldering iron
 
-Other project ideas using this template but a different sensor
+#### Stretch Goals
+Eventually I want to take this project and use it as a template to be a smart power meter instead.
 * measure current using a clamp, get input for voltage, calculate power, energy, test using a 3d printer (good plotting since motors will spike and drop current while active)
 [AC Line Splitter](https://www.digikey.com/en/products/detail/klein-tools-inc/69409/6597020)
 [AC Current Sensor](https://www.digikey.com/en/products/detail/dfrobot/SEN0211/6588615)
