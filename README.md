@@ -48,7 +48,6 @@ The timestamp will be updated after each data POST request to keep the timestamp
 | GND (UART PORT) | GND for CO2 Sensor |
 | GND | GND for button -> CO2 HD Pin |
 
-
 #### Tutorials 
 https://randomnerdtutorials.com/lvgl-cheap-yellow-display-esp32-2432s028r
 [LVGL Widgets Docs](https://docs.lvgl.io/master/widgets/)
@@ -57,3 +56,29 @@ https://randomnerdtutorials.com/lvgl-cheap-yellow-display-esp32-2432s028r
 * stop button logs whatever data is cached and goes back to start screen
 * just display date with time and elapsed time also if in session mode
 * also display the current CO2 level under the plot that updates every 1s even for longer logging modes - change color from red to green as well
+* Change references to Air Quality Throughout file (top text especially)
+* set building and room number to 'debug' when value is not given
+* Create label in recording screen to display error statuses
+* check if the plot can just be refreshed without loading new buffer (with flag for refresh without time scale change)
+
+#### CAD
+Modified [ghfisanotti's CYD Case on Thingiverse](https://www.thingiverse.com/thing:7047135), licensed under CC BY-SA 3.0. See CAD folder in this repo for the STL and STEP files.
+
+#### Required Parts
+* 1x ESP-32 CYD
+* 1x MH-Z19C CO2 Sensor
+* 1x 3.7 V Lipo w/ JST 1.25mm connector *optional
+* 2x 1.25mm 4-pin JST to Dupont connectors
+* 1x CYD_LID (3D printed)
+* 1x CYD_BASE (3D printed)
+* 4x M3 heat-set inserts
+* 4x M3x8 bolts
+* 1x [push button](https://www.amazon.com/Waterproof-Momentary-Button-Switch-Colors/dp/B07F24Y1TB) *optional, for zeroing the sensor
+* 1x 5-pin female pin header *optional, for securing the sensor to the base
+
+The 5-pin female pin header is secured by melting the plastic around it with a soldering iron
+
+Other project ideas using this template but a different sensor
+* measure current using a clamp, get input for voltage, calculate power, energy, test using a 3d printer (good plotting since motors will spike and drop current while active)
+[AC Line Splitter](https://www.digikey.com/en/products/detail/klein-tools-inc/69409/6597020)
+[AC Current Sensor](https://www.digikey.com/en/products/detail/dfrobot/SEN0211/6588615)
