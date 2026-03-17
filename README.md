@@ -1,4 +1,5 @@
 # CO2 Monitor
+![](images/img_2.jpeg)
 
 ### Description
 ESP-32 device that monitors the CO2 level in the room and sends the infomation to a database in the cloud. A website will display the data.
@@ -16,15 +17,13 @@ ESP32 Cheap Yellow Display ([more info](https://www.lcdwiki.com/2.8inch_ESP32-32
 3.7V LiPo Battery\
 [by MakerHawk](https://www.amazon.com/gp/aw/d/B0D7MC714N)
 
-#### Ideas
-* calibrate CO2 sensor by pulling pin HD on MH-Z19C low via button between ground and the pin. Depress button for 7 seconds to zero the CO2 sensor to 400 ppm (only do this when outdoors)
-
 #### Features
 * Screen automatically sleeps after 5 minutes of inactivity
 * 1100 mAh battery with charging via the USB-C port (~6hr wireless battery life)
+* Zero the CO2 sensor to 400 ppm by depressing the button for 7 seconds (only do this when outdoors)
 
 #### Dependencies
-* Django for web app
+* Django for web app, API endpoint, PostgreSQL database
 * LVGL for ESP-32 GUI
 * TFT_eSPI
 * XPT2046_Touchscreen
@@ -36,30 +35,17 @@ ESP32 Cheap Yellow Display ([more info](https://www.lcdwiki.com/2.8inch_ESP32-32
 Data will be in the following format:
 ```JSON
 {"mode":"ambient","building":"COE","room_number":306,"unix_timestamp":1678886400,"CO2_ppm":750}
+{"mode":"ambient","building":"COE","room_number":306,"unix_timestamp":1678886401,"CO2_ppm":760}
 ```
-The timestamp will be updated after each data POST request to keep the timestamps accurate over long periods of time.
+Samples will be taken every 1 second. The timestamp will be updated after each data POST request to keep the timestamps accurate over long periods of time. POST requests will be made every 5 minutes to reduce power usage and live data is already displayed on the CYD. A PostgreSQL database hosted in the cloud will be used to store the data.
 
 #### Pinout
-
 | Pin | Use |
 |-----|-----|
 | IO35 | PWM for CO2 Sensor |
 | 5V (UART PORT) | Vin for CO2 Sensor |
 | GND (UART PORT) | GND for CO2 Sensor |
 | GND | GND for button -> CO2 HD Pin |
-
-#### Tutorials 
-https://randomnerdtutorials.com/lvgl-cheap-yellow-display-esp32-2432s028r
-[LVGL Widgets Docs](https://docs.lvgl.io/master/widgets/)
-
-#### TODO
-* stop button logs whatever data is cached and goes back to start screen
-* just display date with time and elapsed time also if in session mode
-* also display the current CO2 level under the plot that updates every 1s even for longer logging modes - change color from red to green as well
-* Change references to Air Quality Throughout file (top text especially)
-* set building and room number to 'debug' when value is not given
-* Create label in recording screen to display error statuses
-* check if the plot can just be refreshed without loading new buffer (with flag for refresh without time scale change)
 
 #### CAD
 Modified [ghfisanotti's CYD Case on Thingiverse](https://www.thingiverse.com/thing:7047135), licensed under CC BY-SA 3.0. See CAD folder in this repo for the STL and STEP files.
@@ -76,10 +62,24 @@ Modified [ghfisanotti's CYD Case on Thingiverse](https://www.thingiverse.com/thi
 * 1x [push button](https://www.amazon.com/Waterproof-Momentary-Button-Switch-Colors/dp/B07F24Y1TB) *optional, for zeroing the sensor
 * 1x 5-pin female pin header *optional, for securing the sensor to the base
 
-The 5-pin female pin header is secured by melting the plastic around it with a soldering iron
+The 5-pin female pin header is secured by melting the plastic around it with a soldering iron. On the female pin header that the MH-Z19C's HD pin will plug into, solder a wire (this will connect to one pin of the button). Connect the other pin of the button to a GND pin on the CYD.
 
-#### Stretch Goals
-Eventually I want to take this project and use it as a template to be a smart power meter instead.
-* measure current using a clamp, get input for voltage, calculate power, energy, test using a 3d printer (good plotting since motors will spike and drop current while active)
-[AC Line Splitter](https://www.digikey.com/en/products/detail/klein-tools-inc/69409/6597020)
-[AC Current Sensor](https://www.digikey.com/en/products/detail/dfrobot/SEN0211/6588615)
+### Temporary development notes
+#### Tutorials 
+[GUI Configs](https://randomnerdtutorials.com/lvgl-cheap-yellow-display-esp32-2432s028r) \
+[LVGL Widgets Docs](https://docs.lvgl.io/master/widgets/)
+
+#### TODO
+* stop button logs whatever data is cached and goes back to start screen
+* just display date with time and elapsed time also if in session mode
+* also display the current CO2 level under the plot that updates every 1s even for longer logging modes - change color from red to green as well
+* Change references to Air Quality to CO2 instead throughout the files (ex. top text)
+* set building and room number to 'debug' when value is not given (so it can be filtered out in database)
+* Create label in recording screen to display error statuses
+* check if the plot can just be refreshed without loading new buffer (with flag for refresh without time scale change)
+
+#### Data Visualization
+* User should be able to search by building, room number, time (range, date)
+* User should be able to see the most recent data in a plot (with the number of minutes since last data upload)
+* User should be able to modify the parameters of the displayed plot (ex. time scale)
+* Code should include a room score so the user can search for the rooms with the highest and lowest CO2 levels
