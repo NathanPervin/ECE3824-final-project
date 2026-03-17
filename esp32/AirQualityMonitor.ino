@@ -90,6 +90,15 @@ TimeScale current_time_scale = t_60s;
 
 const int screen_sleep_after_time = 300000; // ms, 5 mins
 
+lv_obj_t * CO2_level_label;
+char CO2_level_text[30];
+
+lv_obj_t * time_label;
+char time_text[32];
+
+lv_obj_t * error_label;
+char error_text[32];
+
 /*
 //  CO2 Sensor Variables
 */
@@ -183,6 +192,7 @@ void initialize_wifi() {
 
   if(WiFi.status() != WL_CONNECTED){
     Serial.println("\nFailed to connect to Wi-Fi");
+    snprintf(error_text, sizeof(error_text), "%s", "Failed to connect to Wi-Fi");
     return;
   }
 
@@ -194,7 +204,7 @@ void initialize_wifi() {
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 }
 
-int get_unix_time() {
+time_t get_unix_time() {
 
   Serial.println("Getting time from NTP server...");
   time_t now = time(nullptr);
@@ -570,6 +580,7 @@ static void event_radio_button(lv_event_t * e) {
   }
   else if (strcmp(lv_checkbox_get_text(obj), time_scales[2]) == 0) {
     current_time_scale = t_1hr;
+    snprintf(error_text, sizeof(error_text), "%s", "");
   }
   else if (strcmp(lv_checkbox_get_text(obj), time_scales[3]) == 0) {
     current_time_scale = t_24hrs;
@@ -577,6 +588,8 @@ static void event_radio_button(lv_event_t * e) {
   else {
     Serial.print("Unable to resolve time scale from radio box selection!");
   }
+
+  update_plot();
 }
 
 // Creates checkboxes as radio buttons for the time scale selection
@@ -638,11 +651,41 @@ void lv_stop_button(lv_obj_t* screen) {
   lv_obj_add_event_cb(btn2, stop_button_event, LV_EVENT_ALL, NULL);
   lv_obj_align(btn2, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
   lv_obj_remove_flag(btn2, LV_OBJ_FLAG_PRESS_LOCK);
+  lv_obj_set_size(btn2, 100, 50);
   
   // Text inside the button
   label = lv_label_create(btn2);
   lv_label_set_text(label, "Stop");
   lv_obj_center(label);
+
+}
+
+void convert_time(time_t t) {
+  struct tm * timeinfo;
+  timeinfo = localtime(&t); // converts to local time
+
+  // save to gloal variable
+  //strftime(time_text, sizeof(time_text), "%Y-%m-%d %H:%M:%S", timeinfo); // military time
+  strftime(time_text, sizeof(time_text), "%Y-%m-%d %I:%M:%S %p", timeinfo);
+}
+
+void lv_data_text(lv_obj_t* screen) {
+
+  // Text for the current CO2 level
+  CO2_level_label = lv_label_create(screen);
+  lv_label_set_text(CO2_level_label, "");
+  lv_obj_align_to(CO2_level_label, chart, LV_ALIGN_OUT_BOTTOM_LEFT, 40, 0);
+
+  time_label = lv_label_create(screen);
+  lv_label_set_text(time_label, "");
+  lv_obj_align_to(time_label, chart, LV_ALIGN_OUT_BOTTOM_LEFT, -115, 0);
+  lv_obj_set_width(time_label, 90);
+
+  error_label = lv_label_create(screen);
+  lv_label_set_text(error_label, "");
+  lv_obj_align_to(error_label, chart, LV_ALIGN_OUT_BOTTOM_LEFT, -115, 60);
+  lv_obj_set_style_text_color(error_label, lv_palette_main(LV_PALETTE_RED), 0);
+  //lv_obj_set_width(error_label, 90);
 
 }
 
@@ -663,6 +706,7 @@ void lv_create_main_gui(void) {
   lv_chart(recording_screen);
   lv_radio_buttons(recording_screen);
   lv_stop_button(recording_screen);
+  lv_data_text(recording_screen);
 
   // set the start screen as the active scren
   lv_scr_load(start_screen);
@@ -701,6 +745,16 @@ void update_plot() {
   else {
       lv_chart_set_series_color(chart, ser, lv_palette_main(LV_PALETTE_GREEN));
   }
+
+  // update CO2 level label with the newest value
+  snprintf(CO2_level_text, sizeof(CO2_level_text), "CO2 Level: %d (ppm)", (int32_t)CO2_value);
+  lv_label_set_text(CO2_level_label, CO2_level_text);
+
+  time_t time = get_unix_time();
+  convert_time(time); // saves time to global var time_text
+  lv_label_set_text(time_label, time_text);
+
+  lv_label_set_text(error_label, error_text);
 
   lv_chart_refresh(chart);
 }
