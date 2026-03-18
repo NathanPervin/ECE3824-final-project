@@ -117,6 +117,12 @@ const short int CO2_log_rate = 1000; // ms
 const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = -18000;   // EST
 const int daylightOffset_sec = 3600;  // 1 hour for daylight saving
+bool wifi_initialized = false;
+//int last_wifi_init_attempt = 0; // seconds since last initialization attempt
+//const int attempt_wifi_init_every = 120; // interval for time between wifi attempts to be initalized
+
+unsigned long last_wifi_init_attempt = 0; // timestamp of last attempt
+const unsigned long attempt_wifi_init_every = 120000; // 2 minutes in ms
 
 /*
     System Variables
@@ -192,8 +198,13 @@ void initialize_wifi() {
 
   if(WiFi.status() != WL_CONNECTED){
     Serial.println("\nFailed to connect to Wi-Fi");
-    snprintf(error_text, sizeof(error_text), "%s", "Failed to connect to Wi-Fi");
+    wifi_initialized = false;
+    error_handler();
     return;
+  } 
+  else {
+    wifi_initialized = true;
+    error_handler();
   }
 
   Serial.println("\nWi-Fi connected!");
@@ -204,7 +215,23 @@ void initialize_wifi() {
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 }
 
+bool handle_wifi_reinitialization() {
+  if (!wifi_initialized) {
+    if (millis() - last_wifi_init_attempt >= attempt_wifi_init_every) {
+      initialize_wifi();
+      last_wifi_init_attempt = millis(); // reset timestamp
+      return wifi_initialized;
+    }
+    else {
+      return false;
+    }
+  }
+  return true;
+}
+
 time_t get_unix_time() {
+
+  if (!handle_wifi_reinitialization()) return -1;
 
   Serial.println("Getting time from NTP server...");
   time_t now = time(nullptr);
@@ -338,6 +365,16 @@ bool get_location() {
   strncpy(room_text, room_text_const, MAX_INPUT_TEXT_LENGTH - 1);
   room_text[MAX_INPUT_TEXT_LENGTH - 1] = '\0';
   return true;
+}
+
+// called to update the error text, handles displaying multiple errors
+static void error_handler() {
+  if (!wifi_initialized) {
+    snprintf(error_text, sizeof(error_text), "%s", "Failed to connect to Wi-Fi");
+  }
+  else { // TMP, save old errors later
+    snprintf(error_text, sizeof(error_text), "%s", "");
+  }
 }
 
 // Get the Touchscreen data
@@ -580,7 +617,6 @@ static void event_radio_button(lv_event_t * e) {
   }
   else if (strcmp(lv_checkbox_get_text(obj), time_scales[2]) == 0) {
     current_time_scale = t_1hr;
-    snprintf(error_text, sizeof(error_text), "%s", "");
   }
   else if (strcmp(lv_checkbox_get_text(obj), time_scales[3]) == 0) {
     current_time_scale = t_24hrs;
@@ -751,7 +787,13 @@ void update_plot() {
   lv_label_set_text(CO2_level_label, CO2_level_text);
 
   time_t time = get_unix_time();
-  convert_time(time); // saves time to global var time_text
+  if (time == -1) {
+    snprintf(time_text, sizeof(time_text), "");
+  } 
+  else {
+    convert_time(time); // saves time to global var time_text
+  }
+
   lv_label_set_text(time_label, time_text);
 
   lv_label_set_text(error_label, error_text);
@@ -768,7 +810,7 @@ void setup() {
   
   // Start WIFI connection
   initialize_wifi();
-  Serial.print(get_unix_time());
+  //Serial.print(get_unix_time());
 
   // Start LVGL
   lv_init();
