@@ -168,7 +168,7 @@ static float CO2_value = 0;
 bool on_start_screen = false;
 bool on_recording_screen = false;
 
-#define LOG_BUFFER_SIZE 300 // 300 JSON lines, 1s per line = 5 minutes of data
+#define LOG_BUFFER_SIZE 15 // 300 JSON lines, 1s per line = 5 minutes of data
 
 // {"mode":"session","building":"","room_number":"","unix_timestamp":1700000000,"CO2_ppm":5000}
 // fixed chars:  ~64  +  max building: 30  +  max room: 10  +  null: 1  =  105, use 128 extra room
@@ -230,6 +230,7 @@ void initialize_wifi() {
   }
 
   Serial.println("\nWi-Fi connected!");
+  wifi_initialized = true;
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
@@ -273,7 +274,6 @@ time_t get_unix_time() {
 /*
     System Functions
 */
-
 void log_data(int32_t CO2_ppm, time_t unix_time) {
   snprintf(log_buffer[log_buffer_index], MAX_JSON_LINE,
     "{\"mode\":\"%s\",\"building\":\"%s\",\"room_number\":\"%s\",\"unix_timestamp\":%ld,\"CO2_ppm\":%d}",
@@ -284,29 +284,66 @@ void log_data(int32_t CO2_ppm, time_t unix_time) {
     (int)CO2_ppm
   );
 
-  Serial.println(log_buffer[log_buffer_index]);
+  //Serial.println(log_buffer[log_buffer_index]);
   log_buffer_index++;
 
   if (log_buffer_index >= LOG_BUFFER_SIZE) {
-    upload_data();
+    //upload_data();
     log_buffer_index = 0;
   }
 }
 
 bool upload_data() {
+  if (!handle_wifi_reinitialization()) {
+    Serial.println("Cannot upload: WiFi not connected");
+    return false;
+  }
 
+  // calculate payload size upfront to avoid reallocation
+  int payload_len = 2; // [ ]
+  for (int i = 0; i < log_buffer_index; i++) {
+    payload_len += strlen(log_buffer[i]);
+    if (i < log_buffer_index - 1) payload_len += 1; // comma
+  }
+
+  String payload;
+  payload.reserve(payload_len + 1);
+  payload = "[";
+  for (int i = 0; i < log_buffer_index; i++) {
+    payload += log_buffer[i];
+    if (i < log_buffer_index - 1) payload += ",";
+  }
+  payload += "]";
+
+  WiFiClient client;
+  HTTPClient http;
+  http.begin(client, SERVER_URL);
+  http.addHeader("Content-Type", "application/json");
+
+  Serial.printf("Uploading %d readings...\n", log_buffer_index);
+  int response_code = http.POST(payload);
+
+  if (response_code > 0) {
+    Serial.printf("POST response: %d\n", response_code);
+    Serial.println(http.getString());
+    http.end();
+    return true;
+  } else {
+    Serial.printf("POST failed: %s\n", http.errorToString(response_code).c_str());
+    http.end();
+    return false;
+  }
 }
 
 // called each time a CO2 value is collected (every 1 second),
 // values get averaged and stored in all buffers to allow for
 // past data to be displayed for new timescale 
 void load_buffers(float CO2_ppm) {
-
   
   int32_t val = (int32_t)CO2_ppm;
 
   time_t time = get_unix_time();
-  if (time == -1) {
+  if (time == -1 || time == 0) {
     snprintf(time_text, sizeof(time_text), "");
   } 
   else {
@@ -315,7 +352,6 @@ void load_buffers(float CO2_ppm) {
     // only log the value if we are able to receive a time stamp
     log_data(val, time);
   }
-
 
   // load 60 seconds buffer, get next index
   buffer_60secs[i_60secs] = val;
