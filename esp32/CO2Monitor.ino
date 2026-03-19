@@ -36,7 +36,7 @@ int x, y, z;
 #define DRAW_BUF_SIZE (SCREEN_WIDTH * SCREEN_HEIGHT / 10 * (LV_COLOR_DEPTH / 8))
 uint32_t draw_buf[DRAW_BUF_SIZE / 4];
 
-const char* top_text = "Air Quality Monitor";
+const char* top_text = "CO2 Monitor";
 const char* enter_building_text = "Building";
 const char* enter_room_number_text = "Room Number";
 const char* ambient_text = "Ambient";
@@ -99,6 +99,8 @@ char time_text[32];
 lv_obj_t * error_label;
 char error_text[32];
 
+lv_obj_t * wifi_dropdown;
+
 /*
 //  CO2 Sensor Variables
 */
@@ -122,7 +124,14 @@ bool wifi_initialized = false;
 //const int attempt_wifi_init_every = 120; // interval for time between wifi attempts to be initalized
 
 unsigned long last_wifi_init_attempt = 0; // timestamp of last attempt
-const unsigned long attempt_wifi_init_every = 120000; // 2 minutes in ms
+const unsigned long attempt_wifi_init_every = 5000; // ms
+static int max_init_attempts = 5;
+
+#define MAX_SSID_LEN 64
+#define MAX_PASSWORD_LEN 64
+
+char WIFI_SSID[MAX_SSID_LEN];
+char WIFI_PASSWORD[MAX_PASSWORD_LEN];
 
 /*
     System Variables
@@ -190,7 +199,7 @@ void initialize_wifi() {
 
   // try to connect to the wifi
   int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+  while (WiFi.status() != WL_CONNECTED && attempts < max_init_attempts) {
     delay(500);
     Serial.print(".");
     attempts++;
@@ -233,7 +242,6 @@ time_t get_unix_time() {
 
   if (!handle_wifi_reinitialization()) return -1;
 
-  Serial.println("Getting time from NTP server...");
   time_t now = time(nullptr);
   int retry = 0;
   const int retry_count = 10;
@@ -241,7 +249,6 @@ time_t get_unix_time() {
   // ensure unix time is valid, otherwise try again
   while (now < 1000000000 && retry < retry_count) { 
     delay(500);
-    Serial.print(".");
     now = time(nullptr);
     retry++;
   }
@@ -367,6 +374,14 @@ bool get_location() {
   return true;
 }
 
+void get_wifi_option() {
+  uint16_t sel = lv_dropdown_get_selected(wifi_dropdown);
+  if(sel < NUMBER_WIFI_OPTIONS) {
+    snprintf(WIFI_SSID, sizeof(WIFI_SSID), "%s", WIFI_SSIDS[sel]);
+    snprintf(WIFI_PASSWORD, sizeof(WIFI_PASSWORD), "%s", WIFI_PASSWORDS[sel]);
+  }
+}
+
 // called to update the error text, handles displaying multiple errors
 static void error_handler() {
   if (!wifi_initialized) {
@@ -437,6 +452,7 @@ void lv_top_text(lv_obj_t* screen) {
 void lv_keyboard(lv_obj_t* screen) {
   // Create a keyboard, automatically displays when a text box is clicked on
   lv_obj_t * kb = lv_keyboard_create(screen);
+  lv_obj_add_flag(kb, LV_OBJ_FLAG_HIDDEN);
 
   // Enter Building Text (Above the text box)
   lv_obj_t * building_text_label = lv_label_create(screen);
@@ -520,10 +536,14 @@ static void start_button_event(lv_event_t * e) {
 
     // if the location text is valid, advance to the recording screen
     if (!get_location()) return;
+    get_wifi_option();
     lv_scr_load(recording_screen);
+
     on_start_screen = false;
     on_recording_screen = true;
     clear_buffers();
+
+    initialize_wifi();
   }
 }
 
@@ -594,6 +614,41 @@ void lv_chart(lv_obj_t* screen) {
   lv_obj_set_style_text_font(y_label_bottom, &lv_font_montserrat_10, 0);
   lv_obj_align_to(y_label_bottom, chart, LV_ALIGN_OUT_LEFT_BOTTOM, 0, -5);
 
+}
+
+static void wifi_dropdown_handler(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * obj = lv_event_get_target_obj(e);
+
+    if(code == LV_EVENT_VALUE_CHANGED) {
+        uint16_t sel = lv_dropdown_get_selected(obj);
+
+        if(sel < NUMBER_WIFI_OPTIONS) {
+            snprintf(WIFI_SSID, sizeof(WIFI_SSID), "%s", WIFI_SSIDS[sel]);
+            snprintf(WIFI_PASSWORD, sizeof(WIFI_PASSWORD), "%s", WIFI_PASSWORDS[sel]);
+
+            LV_LOG_USER("Selected SSID: %s", WIFI_SSID);
+        }
+    }
+}
+
+void lv_dropdown(lv_obj_t* screen)
+{
+
+    wifi_dropdown = lv_dropdown_create(screen);
+
+    // Build newline-separated options
+    static char options_str[256];
+    options_str[0] = '\0';
+    for(int i = 0; i < NUMBER_WIFI_OPTIONS; i++) {
+        strcat(options_str, WIFI_SSIDS[i]);
+        if(i < NUMBER_WIFI_OPTIONS - 1) strcat(options_str, "\n");
+    }
+
+    lv_dropdown_set_options(wifi_dropdown, options_str);
+    lv_obj_align(wifi_dropdown, LV_ALIGN_TOP_MID, 0, 150);
+    lv_obj_add_event_cb(wifi_dropdown, wifi_dropdown_handler, LV_EVENT_ALL, NULL);
 }
 
 // Called when the user selects a radio button option
@@ -737,6 +792,8 @@ void lv_create_main_gui(void) {
   lv_keyboard(start_screen);
   lv_switch(start_screen);
   lv_start_button(start_screen);
+  lv_dropdown(start_screen);
+  lv_obj_clear_flag(start_screen, LV_OBJ_FLAG_SCROLLABLE); // prevent the screen fron scrolling when trying to enter info
 
   // call functions to create recording screen
   lv_chart(recording_screen);
@@ -746,6 +803,7 @@ void lv_create_main_gui(void) {
 
   // set the start screen as the active scren
   lv_scr_load(start_screen);
+  
   on_start_screen = true;
 }
 
@@ -807,10 +865,6 @@ void setup() {
   // Initialize CO2 Sensor PWM pin and assign software interrupt
   pinMode(CO2_PWM_PIN, INPUT);
   attachInterrupt(CO2_PWM_PIN, read_PWM, CHANGE);
-  
-  // Start WIFI connection
-  initialize_wifi();
-  //Serial.print(get_unix_time());
 
   // Start LVGL
   lv_init();
@@ -839,6 +893,9 @@ void setup() {
 
   // Function to draw the GUI (text, buttons and sliders)
   lv_create_main_gui();
+
+  // Start WIFI connection
+  //initialize_wifi();
 }
 
 void loop() {
@@ -866,12 +923,15 @@ void loop() {
       // Serial.print(ppm);
       // Serial.println(" ppm");
       CO2_value = ppm;
-      load_buffers(ppm);
+
+      if (on_recording_screen) {
+        load_buffers(ppm);
+      }
     } else {
       Serial.println("Invalid PWM Received");
     }
   }
-
+  
   // Turns the backlight off after some time of inactivity
   if(lv_disp_get_inactive_time(NULL) > screen_sleep_after_time) {
     digitalWrite(TFT_BL, LOW);
