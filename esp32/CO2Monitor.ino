@@ -52,9 +52,12 @@ static lv_obj_t* recording_screen;
 static lv_obj_t * ta1; // text area for the building input
 static lv_obj_t * ta2; // text area for the room input
 
-#define MAX_INPUT_TEXT_LENGTH 50
-char building_text[MAX_INPUT_TEXT_LENGTH];
-char room_text[MAX_INPUT_TEXT_LENGTH];
+#define MAX_BUILDING_LENGTH 31  
+#define MAX_ROOM_LENGTH 11      
+
+//#define MAX_INPUT_TEXT_LENGTH 50
+char building_text[MAX_BUILDING_LENGTH];
+char room_text[MAX_ROOM_LENGTH];
 
 static lv_obj_t * chart;
 static lv_chart_series_t * ser;
@@ -359,19 +362,19 @@ bool get_location() {
   const char* building_text_const = lv_textarea_get_text(ta1); 
   const char* room_text_const = lv_textarea_get_text(ta2); 
 
-  if (strlen(building_text_const) >= MAX_INPUT_TEXT_LENGTH) {
+  if (strlen(building_text_const) >= MAX_BUILDING_LENGTH) {
     Serial.println("Error: Building name too long!");
     return false;
   }
-  if (strlen(room_text_const) >= MAX_INPUT_TEXT_LENGTH) {
+  if (strlen(room_text_const) >= MAX_ROOM_LENGTH) {
     Serial.println("Error: Room number too long!");
     return false;
   }
 
-  strncpy(building_text, building_text_const, MAX_INPUT_TEXT_LENGTH - 1);
-  building_text[MAX_INPUT_TEXT_LENGTH - 1] = '\0';
-  strncpy(room_text, room_text_const, MAX_INPUT_TEXT_LENGTH - 1);
-  room_text[MAX_INPUT_TEXT_LENGTH - 1] = '\0';
+  strncpy(building_text, building_text_const, MAX_BUILDING_LENGTH - 1);
+  building_text[MAX_BUILDING_LENGTH - 1] = '\0';
+  strncpy(room_text, room_text_const, MAX_ROOM_LENGTH - 1);
+  room_text[MAX_ROOM_LENGTH - 1] = '\0';
   return true;
 }
 
@@ -476,6 +479,7 @@ void lv_keyboard(lv_obj_t* screen) {
   lv_obj_add_event_cb(ta1, ta_event_cb, LV_EVENT_ALL, kb);
   lv_textarea_set_placeholder_text(ta1, "COE");
   lv_obj_set_size(ta1, 140, 35);
+  lv_textarea_set_max_length(ta1, MAX_BUILDING_LENGTH-1);
   
   // Room Number Text (Above the text box)
   lv_obj_t * room_number_text_label = lv_label_create(screen);
@@ -491,6 +495,7 @@ void lv_keyboard(lv_obj_t* screen) {
   lv_obj_add_event_cb(ta2, ta_event_cb, LV_EVENT_ALL, kb);
   lv_textarea_set_placeholder_text(ta2, "306");
   lv_obj_set_size(ta2, 140, 35);
+  lv_textarea_set_max_length(ta2, MAX_ROOM_LENGTH-1);
 
   lv_keyboard_set_textarea(kb, ta1);
 
