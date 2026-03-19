@@ -1,8 +1,8 @@
 # CO2 Monitor
-![](images/img_2.jpeg)
+![](images/img_1.jpeg)
 
 ### Description
-ESP-32 device that monitors the CO2 level in the room and sends the infomation to a database in the cloud. A website will display the data.
+An ESP-32 device that monitors the CO2 level in the room and sends the infomation to a database in the cloud. A website will display the data.
 
 ### Impact
 [Studies](https://www.sciencedirect.com/science/article/pii/S036013232300358X) have shown that short-term exposure to high levels of CO2 can reduce cognitive performance and negatively impact learning. Therefore, it is important to be ensure that CO2 levels remain low in an academic setting.
@@ -23,7 +23,7 @@ ESP32 Cheap Yellow Display ([more info](https://www.lcdwiki.com/2.8inch_ESP32-32
 * Zero the CO2 sensor to 400 ppm by depressing the button for 7 seconds (only do this when outdoors)
 
 #### Dependencies
-* Django for web app, API endpoint, PostgreSQL database
+* Django for web app, API endpoint, and PostgreSQL database
 * LVGL for ESP-32 GUI
 * TFT_eSPI
 * XPT2046_Touchscreen
@@ -44,13 +44,13 @@ Samples will be taken every 1 second. The timestamp will be updated after each d
 |-----|-----|
 | IO35 | PWM for CO2 Sensor |
 | 5V (UART PORT) | Vin for CO2 Sensor |
-| GND (UART PORT) | GND for CO2 Sensor |
-| GND | GND for button -> CO2 HD Pin |
+| GND | GND for CO2 Sensor |
+| GND | GND for button -> CO2 Sensor HD Pin |
 
 #### CAD
-Modified [ghfisanotti's CYD Case on Thingiverse](https://www.thingiverse.com/thing:7047135), licensed under CC BY-SA 3.0. See CAD folder in this repo for the STL and STEP files.
+Modified [ghfisanotti's CYD Case on Thingiverse](https://www.thingiverse.com/thing:7047135), licensed under CC BY-SA 3.0. See CAD folder in this repo for the STL and STEP files. 
 
-#### Required Parts
+#### Required Parts and Assembly
 * 1x ESP-32 CYD
 * 1x MH-Z19C CO2 Sensor
 * 1x 3.7 V Lipo w/ JST 1.25mm connector *optional
@@ -66,6 +66,14 @@ The 5-pin female pin header is secured by melting the plastic around it with a s
 
 #### Stretch Goals
 * Dark Mode for ESP-32
+* Handle http failure codes: handle extending batch size for POST failure, reattempt POST some number of times before clearing the buffer to avoid overflow. 
+* ESP-32 timezone configuration for displayed time
+
+#### Data Visualization
+* User should be able to search by building, room number, time (range, date)
+* User should be able to see the most recent data in a plot (with the number of minutes since last data upload)
+* User should be able to modify the parameters of the displayed plot (ex. time scale)
+* Code should include a room score so the user can search for the rooms with the highest and lowest CO2 levels
 
 ### Temporary development notes
 #### Tutorials 
@@ -74,19 +82,12 @@ The 5-pin female pin header is secured by melting the plastic around it with a s
 
 #### TODO
 * stop button logs whatever data is cached and goes back to start screen
-* just display date with time and elapsed time also if in session mode
-* Change references to Air Quality to CO2 instead throughout the files (ex. top text)
+* display elapsed time also if in session mode
 * set building and room number to 'debug' when value is not given (so it can be filtered out in database)
 * check if the plot can just be refreshed without loading new buffer (with flag for refresh without time scale change)
 * first 1-2 mins make plot line blue to indicate sensor warming up
 * make sure not to call get unix time twice when logging data (use same reference for displaying the time and logging data)
-* choose from dropdown list of saved wifi ssid's on start screen
-* handle daylight savings change automatically
-* cap the string input field character amount
-
-
-#### Data Visualization
-* User should be able to search by building, room number, time (range, date)
-* User should be able to see the most recent data in a plot (with the number of minutes since last data upload)
-* User should be able to modify the parameters of the displayed plot (ex. time scale)
-* Code should include a room score so the user can search for the rooms with the highest and lowest CO2 levels
+* stop button should disconnect wifi
+* dont get unix time from load_buffers every time it is called, get unix time when making a post, increment the existing unix time from load_buffers instead since it is called once per second (create new variable for increment amount in case data logging interval changes in future)
+* maybe use a finer time scale than seconds
+* token protection for the POST (will configure this for the esp32 after the api code is written)
