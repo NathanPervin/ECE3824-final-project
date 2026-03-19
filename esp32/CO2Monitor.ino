@@ -11,6 +11,7 @@
 #include <WiFi.h>
 #include <time.h>
 #include <secrets.h>
+#include <HTTPClient.h>
 
 /*
     GUI Variables
@@ -167,6 +168,14 @@ static float CO2_value = 0;
 bool on_start_screen = false;
 bool on_recording_screen = false;
 
+#define LOG_BUFFER_SIZE 300 // 300 JSON lines, 1s per line = 5 minutes of data
+
+// {"mode":"session","building":"","room_number":"","unix_timestamp":1700000000,"CO2_ppm":5000}
+// fixed chars:  ~64  +  max building: 30  +  max room: 10  +  null: 1  =  105, use 128 extra room
+#define MAX_JSON_LINE 128
+char log_buffer[LOG_BUFFER_SIZE][MAX_JSON_LINE];
+int log_buffer_index = 0;
+
 /*
     CO2 Sensor Functions
 */
@@ -264,13 +273,51 @@ time_t get_unix_time() {
 /*
     System Functions
 */
+
+void log_data(int32_t CO2_ppm, time_t unix_time) {
+  snprintf(log_buffer[log_buffer_index], MAX_JSON_LINE,
+    "{\"mode\":\"%s\",\"building\":\"%s\",\"room_number\":\"%s\",\"unix_timestamp\":%ld,\"CO2_ppm\":%d}",
+    is_ambient ? "ambient" : "session",
+    building_text,
+    room_text,
+    (long)unix_time,
+    (int)CO2_ppm
+  );
+
+  Serial.println(log_buffer[log_buffer_index]);
+  log_buffer_index++;
+
+  if (log_buffer_index >= LOG_BUFFER_SIZE) {
+    upload_data();
+    log_buffer_index = 0;
+  }
+}
+
+bool upload_data() {
+
+}
+
 // called each time a CO2 value is collected (every 1 second),
 // values get averaged and stored in all buffers to allow for
 // past data to be displayed for new timescale 
 void load_buffers(float CO2_ppm) {
 
-  // load buffer, get next index
+  
   int32_t val = (int32_t)CO2_ppm;
+
+  time_t time = get_unix_time();
+  if (time == -1) {
+    snprintf(time_text, sizeof(time_text), "");
+  } 
+  else {
+    convert_time(time); // saves time to global var time_text
+
+    // only log the value if we are able to receive a time stamp
+    log_data(val, time);
+  }
+
+
+  // load 60 seconds buffer, get next index
   buffer_60secs[i_60secs] = val;
   i_60secs = (i_60secs + 1) % number_plot_points; // index of 60 loops back to 0
 
@@ -354,6 +401,8 @@ void clear_buffers() {
   count_60s = 0;
   sum_last_1440s_CO2 = 0;
   count_1440s = 0;
+
+  log_buffer_index = 0;
 
 }
 
@@ -884,14 +933,6 @@ void update_plot() {
   // update CO2 level label with the newest value
   snprintf(CO2_level_text, sizeof(CO2_level_text), "CO2 Level: %d (ppm)", (int32_t)CO2_value);
   lv_label_set_text(CO2_level_label, CO2_level_text);
-
-  time_t time = get_unix_time();
-  if (time == -1) {
-    snprintf(time_text, sizeof(time_text), "");
-  } 
-  else {
-    convert_time(time); // saves time to global var time_text
-  }
 
   lv_label_set_text(time_label, time_text);
 
