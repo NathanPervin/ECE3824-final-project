@@ -64,6 +64,9 @@ Modified [ghfisanotti's CYD Case on Thingiverse](https://www.thingiverse.com/thi
 
 The 5-pin female pin header is secured by melting the plastic around it with a soldering iron. On the female pin header that the MH-Z19C's HD pin will plug into, solder a wire (this will connect to one pin of the button). Connect the other pin of the button to a GND pin on the CYD.
 
+#### Stretch Goals
+* Dark Mode for ESP-32
+
 ### Temporary development notes
 #### Tutorials 
 [GUI Configs](https://randomnerdtutorials.com/lvgl-cheap-yellow-display-esp32-2432s028r) \
@@ -72,11 +75,15 @@ The 5-pin female pin header is secured by melting the plastic around it with a s
 #### TODO
 * stop button logs whatever data is cached and goes back to start screen
 * just display date with time and elapsed time also if in session mode
-* also display the current CO2 level under the plot that updates every 1s even for longer logging modes - change color from red to green as well
 * Change references to Air Quality to CO2 instead throughout the files (ex. top text)
 * set building and room number to 'debug' when value is not given (so it can be filtered out in database)
-* Create label in recording screen to display error statuses
 * check if the plot can just be refreshed without loading new buffer (with flag for refresh without time scale change)
+* first 1-2 mins make plot line blue to indicate sensor warming up
+* make sure not to call get unix time twice when logging data (use same reference for displaying the time and logging data)
+* choose from dropdown list of saved wifi ssid's on start screen
+* handle daylight savings change automatically
+* cap the string input field character amount
+
 
 #### Data Visualization
 * User should be able to search by building, room number, time (range, date)
