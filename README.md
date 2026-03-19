@@ -17,21 +17,21 @@ ESP32 Cheap Yellow Display ([more info](https://www.lcdwiki.com/2.8inch_ESP32-32
 3.7V LiPo Battery\
 [by MakerHawk](https://www.amazon.com/gp/aw/d/B0D7MC714N)
 
-#### Features
+### Features
 * Screen automatically sleeps after 5 minutes of inactivity
 * 1100 mAh battery with charging via the USB-C port (~6hr wireless battery life)
 * Zero the CO2 sensor to 400 ppm by depressing the button for 7 seconds (only do this when outdoors)
 
-#### Dependencies
+### Dependencies
 * Django for web app, API endpoint, and PostgreSQL database
 * LVGL for ESP-32 GUI
 * TFT_eSPI
 * XPT2046_Touchscreen
 
-#### Web Hosting
+### Web Hosting
 * AWS
 
-#### Data Collection and Upload
+### Data Collection and Upload
 Data will be in the following format:
 ```JSON
 {"mode":"ambient","building":"COE","room_number":306,"unix_timestamp":1678886400,"CO2_ppm":750}
@@ -39,7 +39,7 @@ Data will be in the following format:
 ```
 Samples will be taken every 1 second. The timestamp will be updated after each data POST request to keep the timestamps accurate over long periods of time. POST requests will be made every 5 minutes to reduce power usage and live data is already displayed on the CYD. A PostgreSQL database hosted in the cloud will be used to store the data.
 
-#### Pinout
+### Pinout
 | Pin | Use |
 |-----|-----|
 | IO35 | PWM for CO2 Sensor |
@@ -47,10 +47,10 @@ Samples will be taken every 1 second. The timestamp will be updated after each d
 | GND | GND for CO2 Sensor |
 | GND | GND for button -> CO2 Sensor HD Pin |
 
-#### CAD
+### CAD
 Modified [ghfisanotti's CYD Case on Thingiverse](https://www.thingiverse.com/thing:7047135), licensed under CC BY-SA 3.0. See CAD folder in this repo for the STL and STEP files. 
 
-#### Required Parts and Assembly
+### Required Parts and Assembly
 * 1x ESP-32 CYD
 * 1x MH-Z19C CO2 Sensor
 * 1x 3.7 V Lipo w/ JST 1.25mm connector *optional
@@ -64,12 +64,12 @@ Modified [ghfisanotti's CYD Case on Thingiverse](https://www.thingiverse.com/thi
 
 The 5-pin female pin header is secured by melting the plastic around it with a soldering iron. On the female pin header that the MH-Z19C's HD pin will plug into, solder a wire (this will connect to one pin of the button). Connect the other pin of the button to a GND pin on the CYD.
 
-#### Stretch Goals
+### Stretch Goals
 * Dark Mode for ESP-32
 * Handle http failure codes: handle extending batch size for POST failure, reattempt POST some number of times before clearing the buffer to avoid overflow. 
 * ESP-32 timezone configuration for displayed time
 
-#### Data Visualization
+### Data Visualization
 * User should be able to search by building, room number, time (range, date)
 * User should be able to see the most recent data in a plot (with the number of minutes since last data upload)
 * User should be able to modify the parameters of the displayed plot (ex. time scale)
