@@ -91,3 +91,4 @@ The 5-pin female pin header is secured by melting the plastic around it with a s
 * dont get unix time from load_buffers every time it is called, get unix time when making a post, increment the existing unix time from load_buffers instead since it is called once per second (create new variable for increment amount in case data logging interval changes in future)
 * maybe use a finer time scale than seconds
 * token protection for the POST (will configure this for the esp32 after the api code is written)
+* create stylus holder loop next to usb-c port due to issue where the stylus can fall into the enclosure
