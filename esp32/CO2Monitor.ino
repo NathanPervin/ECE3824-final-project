@@ -99,7 +99,8 @@ char time_text[32];
 lv_obj_t * error_label;
 char error_text[32];
 
-lv_obj_t * wifi_dropdown;
+lv_obj_t * wifi_dropdown = NULL;
+lv_obj_t * wifi_icon_button;
 
 /*
 //  CO2 Sensor Variables
@@ -428,6 +429,13 @@ static void ta_event_cb(lv_event_t * e)
   if(code == LV_EVENT_FOCUSED) {
       lv_keyboard_set_textarea(kb, ta);
       lv_obj_remove_flag(kb, LV_OBJ_FLAG_HIDDEN);
+
+      // when the user clicks into a text area, the dropdown should be hidden
+      // so as to not overlay the keyboard
+      if (wifi_dropdown == NULL) return;
+      if (!lv_obj_has_flag(wifi_dropdown, LV_OBJ_FLAG_HIDDEN)) {
+        lv_obj_add_flag(wifi_dropdown, LV_OBJ_FLAG_HIDDEN);
+      } 
   }
 
   if(code == LV_EVENT_DEFOCUSED) {
@@ -543,7 +551,7 @@ static void start_button_event(lv_event_t * e) {
     on_recording_screen = true;
     clear_buffers();
 
-    initialize_wifi();
+    //initialize_wifi();
   }
 }
 
@@ -635,7 +643,6 @@ static void wifi_dropdown_handler(lv_event_t * e)
 
 void lv_dropdown(lv_obj_t* screen)
 {
-
     wifi_dropdown = lv_dropdown_create(screen);
 
     // Build newline-separated options
@@ -647,8 +654,34 @@ void lv_dropdown(lv_obj_t* screen)
     }
 
     lv_dropdown_set_options(wifi_dropdown, options_str);
-    lv_obj_align(wifi_dropdown, LV_ALIGN_TOP_MID, 0, 150);
+    lv_obj_align(wifi_dropdown, LV_ALIGN_TOP_RIGHT, -80, 120);
     lv_obj_add_event_cb(wifi_dropdown, wifi_dropdown_handler, LV_EVENT_ALL, NULL);
+    lv_obj_add_flag(wifi_dropdown, LV_OBJ_FLAG_HIDDEN); // dropdown hidden initially
+}
+
+static void wifi_icon_button_event(lv_event_t * e) {
+  lv_event_code_t code = lv_event_get_code(e);
+  if (code != LV_EVENT_CLICKED) return;
+
+  // Toggle popup visibility
+  if (lv_obj_has_flag(wifi_dropdown, LV_OBJ_FLAG_HIDDEN)) {
+    lv_obj_remove_flag(wifi_dropdown, LV_OBJ_FLAG_HIDDEN);
+  } else {
+    lv_obj_add_flag(wifi_dropdown, LV_OBJ_FLAG_HIDDEN);
+  }
+}
+
+void lv_wifi_icon_button(lv_obj_t * screen) {
+
+  // Small WiFi icon button, placed to the right of the ambient/session switch area
+  lv_obj_t * btn = lv_button_create(screen);
+  lv_obj_set_size(btn, 40, 30);
+  lv_obj_align(btn, LV_ALIGN_TOP_RIGHT, -80, 85);
+  lv_obj_add_event_cb(btn, wifi_icon_button_event, LV_EVENT_ALL, NULL);
+
+  lv_obj_t * label = lv_label_create(btn);
+  lv_label_set_text(label, LV_SYMBOL_WIFI);
+  lv_obj_center(label);
 }
 
 // Called when the user selects a radio button option
@@ -792,7 +825,10 @@ void lv_create_main_gui(void) {
   lv_keyboard(start_screen);
   lv_switch(start_screen);
   lv_start_button(start_screen);
+  //lv_dropdown(start_screen);
+  lv_wifi_icon_button(start_screen);
   lv_dropdown(start_screen);
+
   lv_obj_clear_flag(start_screen, LV_OBJ_FLAG_SCROLLABLE); // prevent the screen fron scrolling when trying to enter info
 
   // call functions to create recording screen
