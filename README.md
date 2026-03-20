@@ -29,7 +29,8 @@ ESP32 Cheap Yellow Display ([more info](https://www.lcdwiki.com/2.8inch_ESP32-32
 * XPT2046_Touchscreen
 
 ### Web Hosting
-* AWS
+* AWS EC2 for Django application
+* AWS RDS for PostgreSQL
 
 ### Data Collection and Upload
 Data will be in the following format:
@@ -92,3 +93,33 @@ The 5-pin female pin header is secured by melting the plastic around it with a s
 * maybe use a finer time scale than seconds
 * token protection for the POST (will configure this for the esp32 after the api code is written)
 * create stylus holder loop next to usb-c port due to issue where the stylus can fall into the enclosure
+
+#### Info
+EC2 instance Django server running on:
+http://107.23.179.9:8000/
+
+Create virtual environment
+```bash
+python -m venv venv
+```
+
+activate the environment
+```bash
+source venv/bin/activate
+```
+
+Install PostgreSQL
+```bash
+sudo apt install postgresql postgresql-contrib
+```
+
+```bash
+pip install -r requirements.txt
+```
+
+Create a .env inside of CO2 Dashboard, add the secrets, then run the server:
+```bash
+nohup python3 manage.py runserver 0.0.0.0:8000 &
+```
+
+Add the ip address to the allowed host list in setting.py.
