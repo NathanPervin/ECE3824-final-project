@@ -168,7 +168,7 @@ static float CO2_value = 0;
 bool on_start_screen = false;
 bool on_recording_screen = false;
 
-#define LOG_BUFFER_SIZE 15 // 300 JSON lines, 1s per line = 5 minutes of data
+#define LOG_BUFFER_SIZE 300 // 300 JSON lines, 1s per line = 5 minutes of data
 
 // {"mode":"session","building":"","room_number":"","unix_timestamp":1700000000,"CO2_ppm":5000}
 // fixed chars:  ~64  +  max building: 30  +  max room: 10  +  null: 1  =  105, use 128 extra room
@@ -288,7 +288,7 @@ void log_data(int32_t CO2_ppm, time_t unix_time) {
   log_buffer_index++;
 
   if (log_buffer_index >= LOG_BUFFER_SIZE) {
-    //upload_data();
+    upload_data();
     log_buffer_index = 0;
   }
 }
