@@ -11,8 +11,18 @@ dist/
 build/
 wheels/
 
-# OS generated files #
+# OS generated files
 .DS_Store
 
-# don't include the secrets file
+# Secrets
+.env
 secrets.h
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+static/
