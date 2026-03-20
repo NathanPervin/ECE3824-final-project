@@ -456,11 +456,29 @@ bool get_location() {
     return false;
   }
 
-  strncpy(building_text, building_text_const, MAX_BUILDING_LENGTH - 1);
+  // if no building was entered, save as 'debug'
+  if (strlen(building_text_const) == 0) {
+    strncpy(building_text, "debug", MAX_BUILDING_LENGTH - 1);
+  } else {
+    strncpy(building_text, building_text_const, MAX_BUILDING_LENGTH - 1);
+  }
   building_text[MAX_BUILDING_LENGTH - 1] = '\0';
-  strncpy(room_text, room_text_const, MAX_ROOM_LENGTH - 1);
+
+  // if no room was entered, save as '0'
+  if (strlen(room_text_const) == 0) {
+    strncpy(room_text, "0", MAX_ROOM_LENGTH - 1);
+  } else {
+    strncpy(room_text, room_text_const, MAX_ROOM_LENGTH - 1);
+  }
   room_text[MAX_ROOM_LENGTH - 1] = '\0';
+
   return true;
+
+  // strncpy(building_text, building_text_const, MAX_BUILDING_LENGTH - 1);
+  // building_text[MAX_BUILDING_LENGTH - 1] = '\0';
+  // strncpy(room_text, room_text_const, MAX_ROOM_LENGTH - 1);
+  // room_text[MAX_ROOM_LENGTH - 1] = '\0';
+  // return true;
 }
 
 void get_wifi_option() {
@@ -802,7 +820,8 @@ static void event_radio_button(lv_event_t * e) {
   else {
     Serial.print("Unable to resolve time scale from radio box selection!");
   }
-
+  Serial.println("mac address: ");
+  Serial.println(WiFi.macAddress());
   update_plot();
 }
 
@@ -1014,6 +1033,7 @@ void setup() {
 
   // Start WIFI connection
   //initialize_wifi();
+
 }
 
 void loop() {
