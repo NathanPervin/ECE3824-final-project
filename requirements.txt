@@ -1,0 +1,5 @@
+django
+dotenv
+psycopg2-binary
+
+# also download postgres sudo apt install postgresql postgresql-contrib -y
