@@ -123,3 +123,8 @@ nohup python3 manage.py runserver 0.0.0.0:8000 &
 ```
 
 Add the ip address to the allowed host list in setting.py.
+
+stop old application
+```bash
+pkill -f "manage.py runserver"
+```
