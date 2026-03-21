@@ -4,10 +4,17 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from .models import CO2Reading
 from django.shortcuts import render
+from django.conf import settings
+SECRET_TOKEN = settings.CO2_API_TOKEN
 
 @csrf_exempt
 @require_POST
 def log_co2(request):
+
+    token = request.headers.get("Authorization")
+    if token != f"Bearer {SECRET_TOKEN}":
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+    
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:

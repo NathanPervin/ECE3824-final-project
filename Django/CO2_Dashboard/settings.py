@@ -29,7 +29,7 @@ SECRET_KEY = 'django-insecure-fj6u_=kof7%nr=t#c)#5aufm(*qakn+idl!#-k054ynhb4io^^
 DEBUG = True
 
 ALLOWED_HOSTS = ['107.23.179.9', 'localhost', '127.0.0.1']
-
+CO2_API_TOKEN = os.environ.get("CO2_API_TOKEN")
 
 # Application definition
 
