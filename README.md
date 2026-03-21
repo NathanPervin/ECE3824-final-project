@@ -94,11 +94,11 @@ The 5-pin female pin header is secured by melting the plastic around it with a s
 * stop button should disconnect wifi
 * dont get unix time from load_buffers every time it is called, get unix time when making a post, increment the existing unix time from load_buffers instead since it is called once per second (create new variable for increment amount in case data logging interval changes in future)
 * maybe use a finer time scale than seconds
-* token protection for the POST (will configure this for the esp32 after the api code is written)
 * create stylus holder loop next to usb-c port due to issue where the stylus can fall into the enclosure
 * write documentation for buffer max sizes for secrets.h.example, include the max building and room sizes, max JSON lines, etc.
 * check if its currently on by checking if the most recent timestamp is less than 5 mins, indicate that its the live data and not the most recent session/ambient
 * chart on first page should default to the most recent session, searching for a second would replace that plot with the data the user wants
+
 #### Info
 EC2 instance Django server running on:
 http://107.23.179.9:8000/
