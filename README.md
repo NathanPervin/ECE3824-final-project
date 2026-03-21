@@ -69,12 +69,15 @@ The 5-pin female pin header is secured by melting the plastic around it with a s
 * Dark Mode for ESP-32
 * Handle http failure codes: handle extending batch size for POST failure, reattempt POST some number of times before clearing the buffer to avoid overflow. 
 * ESP-32 timezone configuration for displayed time
+* add more than just wifi connection errors to esp-32 error handler
 
 ### Data Visualization
 * User should be able to search by building, room number, time (range, date)
 * User should be able to see the most recent data in a plot (with the number of minutes since last data upload)
 * User should be able to modify the parameters of the displayed plot (ex. time scale)
 * Code should include a room score so the user can search for the rooms with the highest and lowest CO2 levels
+* user should be able to search for a building and see all room numbers listed and the number of sessions/ ambients for each, also the room scores should be visable here.
+* user should be able to select a room number from the above list and see a list of sessions, selecting one brings up a plot with the data.
 
 ### Temporary development notes
 #### Tutorials 
@@ -93,6 +96,7 @@ The 5-pin female pin header is secured by melting the plastic around it with a s
 * maybe use a finer time scale than seconds
 * token protection for the POST (will configure this for the esp32 after the api code is written)
 * create stylus holder loop next to usb-c port due to issue where the stylus can fall into the enclosure
+* write documentation for buffer max sizes for secrets.h.example, include the max building and room sizes, max JSON lines, etc.
 
 #### Info
 EC2 instance Django server running on:

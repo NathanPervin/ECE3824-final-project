@@ -125,8 +125,6 @@ const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = -18000;   // EST
 const int daylightOffset_sec = 3600;  // 1 hour for daylight saving
 bool wifi_initialized = false;
-//int last_wifi_init_attempt = 0; // seconds since last initialization attempt
-//const int attempt_wifi_init_every = 120; // interval for time between wifi attempts to be initalized
 
 unsigned long last_wifi_init_attempt = 0; // timestamp of last attempt
 const unsigned long attempt_wifi_init_every = 5000; // ms
@@ -168,10 +166,10 @@ static float CO2_value = 0;
 bool on_start_screen = false;
 bool on_recording_screen = false;
 
-#define LOG_BUFFER_SIZE 15 // 300 JSON lines, 1s per line = 5 minutes of data
+#define LOG_BUFFER_SIZE 300 // 300 JSON lines, 1s per line = 5 minutes of data
 
 // {"mode":"session","building":"","room_number":"","unix_timestamp":1700000000,"CO2_ppm":5000}
-// fixed chars:  ~64  +  max building: 30  +  max room: 10  +  null: 1  =  105, use 128 extra room
+// fixed chars:  ~64  +  max building: 30  +  max room: 10  +  null: 1  =  105, use 128 for extra room
 #define MAX_JSON_LINE 128
 char log_buffer[LOG_BUFFER_SIZE][MAX_JSON_LINE];
 int log_buffer_index = 0;
@@ -204,6 +202,7 @@ void ARDUINO_ISR_ATTR read_PWM() {
 /*
     WIFI Functions
 */
+// connects to wifi and configures NTP for unix time retrieval
 void initialize_wifi() {
   Serial.printf("Connecting to Wi-Fi %s ...\n", WIFI_SSID);
 
@@ -238,22 +237,30 @@ void initialize_wifi() {
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 }
 
+// Handles wifi connection attempts if wifi connection fails,
+// attempts to estabish a new connection on set intervals until
+// a successful connection is made
 bool handle_wifi_reinitialization() {
   if (!wifi_initialized) {
+
+    // check that the time interval between connections has passed
     if (millis() - last_wifi_init_attempt >= attempt_wifi_init_every) {
+      
       initialize_wifi();
       last_wifi_init_attempt = millis(); // reset timestamp
       return wifi_initialized;
     }
-    else {
+    else { // time interval for new connection attempt has no yet passed
       return false;
     }
-  }
+  } // wifi is already initialized
   return true;
 }
 
+// returns the unix time 
 time_t get_unix_time() {
 
+  // if the wifi is not connected, then the unix time cannot be establisheds
   if (!handle_wifi_reinitialization()) return -1;
 
   time_t now = time(nullptr);
@@ -274,7 +281,12 @@ time_t get_unix_time() {
 /*
     System Functions
 */
+// saves a CO2 level and unix timestamp to a JSON string and adds it to the buffer 
+// that stores all of the JSON lines prior to sending the POST request
+// also calls function that will POST when buffer is full
 void log_data(int32_t CO2_ppm, time_t unix_time) {
+
+  // synthesize the JSON string that will be stored in the buffer 
   snprintf(log_buffer[log_buffer_index], MAX_JSON_LINE,
     "{\"mode\":\"%s\",\"building\":\"%s\",\"room_number\":\"%s\",\"unix_timestamp\":%ld,\"CO2_ppm\":%d}",
     is_ambient ? "ambient" : "session",
@@ -284,16 +296,20 @@ void log_data(int32_t CO2_ppm, time_t unix_time) {
     (int)CO2_ppm
   );
 
-  //Serial.println(log_buffer[log_buffer_index]);
+  // each time a line is added to the buffer, increment a counter and
+  // call function to POST the data when the buffer is full
   log_buffer_index++;
-
   if (log_buffer_index >= LOG_BUFFER_SIZE) {
     upload_data();
     log_buffer_index = 0;
   }
 }
 
+// makes the POST request to the SERVER_URL in secrets.h
+// handles inputting the api token into the header for authentification
 bool upload_data() {
+
+  // ensure that wifi is connected
   if (!handle_wifi_reinitialization()) {
     Serial.println("Cannot upload: WiFi not connected");
     return false;
@@ -342,8 +358,10 @@ bool upload_data() {
 void load_buffers(float CO2_ppm) {
   
   int32_t val = (int32_t)CO2_ppm;
-
   time_t time = get_unix_time();
+
+  // display nothing to the user if time is not valid
+  // usually when wifi isn't initialized yet
   if (time == -1 || time == 0) {
     snprintf(time_text, sizeof(time_text), "");
   } 
@@ -448,6 +466,8 @@ bool get_location() {
   const char* building_text_const = lv_textarea_get_text(ta1); 
   const char* room_text_const = lv_textarea_get_text(ta2); 
 
+  // enforce maximum building and room length in case lvgl max
+  // input limit fails to avoid buffer overflow when creating JSON lines
   if (strlen(building_text_const) >= MAX_BUILDING_LENGTH) {
     Serial.println("Error: Building name too long!");
     return false;
@@ -474,14 +494,10 @@ bool get_location() {
   room_text[MAX_ROOM_LENGTH - 1] = '\0';
 
   return true;
-
-  // strncpy(building_text, building_text_const, MAX_BUILDING_LENGTH - 1);
-  // building_text[MAX_BUILDING_LENGTH - 1] = '\0';
-  // strncpy(room_text, room_text_const, MAX_ROOM_LENGTH - 1);
-  // room_text[MAX_ROOM_LENGTH - 1] = '\0';
-  // return true;
 }
 
+// called when start button is pressed, gets the wifi option that
+// the user selected from the dropdown on the start screen
 void get_wifi_option() {
   uint16_t sel = lv_dropdown_get_selected(wifi_dropdown);
   if(sel < NUMBER_WIFI_OPTIONS) {
@@ -528,26 +544,30 @@ void touchscreen_read(lv_indev_t * indev, lv_indev_data_t * data) {
   }
 }
 
+// called when user clicks into a text area
 static void ta_event_cb(lv_event_t * e)
 {
   lv_event_code_t code = lv_event_get_code(e);
   lv_obj_t * ta = lv_event_get_target_obj(e);
   lv_obj_t * kb = (lv_obj_t *)lv_event_get_user_data(e);
-  if(code == LV_EVENT_FOCUSED) {
-      lv_keyboard_set_textarea(kb, ta);
-      lv_obj_remove_flag(kb, LV_OBJ_FLAG_HIDDEN);
 
-      // when the user clicks into a text area, the dropdown should be hidden
-      // so as to not overlay the keyboard
-      if (wifi_dropdown == NULL) return;
-      if (!lv_obj_has_flag(wifi_dropdown, LV_OBJ_FLAG_HIDDEN)) {
-        lv_obj_add_flag(wifi_dropdown, LV_OBJ_FLAG_HIDDEN);
-      } 
+  // clicked into text area
+  if(code == LV_EVENT_FOCUSED) {
+    lv_keyboard_set_textarea(kb, ta);
+    lv_obj_remove_flag(kb, LV_OBJ_FLAG_HIDDEN);
+
+    // when the user clicks into a text area, the dropdown should be hidden
+    // so as to not overlay the keyboard
+    if (wifi_dropdown == NULL) return;
+    if (!lv_obj_has_flag(wifi_dropdown, LV_OBJ_FLAG_HIDDEN)) {
+      lv_obj_add_flag(wifi_dropdown, LV_OBJ_FLAG_HIDDEN);
+    } 
   }
 
+  // clicked out of text area
   if(code == LV_EVENT_DEFOCUSED) {
-      lv_keyboard_set_textarea(kb, NULL);
-      lv_obj_add_flag(kb, LV_OBJ_FLAG_HIDDEN);
+    lv_keyboard_set_textarea(kb, NULL);
+    lv_obj_add_flag(kb, LV_OBJ_FLAG_HIDDEN);
   }
 }
 
@@ -565,6 +585,7 @@ void lv_top_text(lv_obj_t* screen) {
 // Creates the keyboard when a text area is selected
 // Allows the user to enter a building and room number
 void lv_keyboard(lv_obj_t* screen) {
+
   // Create a keyboard, automatically displays when a text box is clicked on
   lv_obj_t * kb = lv_keyboard_create(screen);
   lv_obj_add_flag(kb, LV_OBJ_FLAG_HIDDEN);
@@ -608,6 +629,7 @@ void lv_keyboard(lv_obj_t* screen) {
 // Called when the Ambient/Session switch is toggled,
 // used for specifying the mode
 static void switch_event_handler(lv_event_t * e) {
+
   lv_event_code_t code = lv_event_get_code(e);
   lv_obj_t * obj = lv_event_get_target_obj(e); 
   LV_UNUSED(obj);
@@ -660,7 +682,8 @@ static void start_button_event(lv_event_t * e) {
     on_recording_screen = true;
     clear_buffers();
 
-    //initialize_wifi();
+    // initialize wifi is not called here since it blocks the screen loading,
+    // it is instead called when the buffer is loaded and time is retrieved 
   }
 }
 
@@ -733,23 +756,19 @@ void lv_chart(lv_obj_t* screen) {
 
 }
 
+// called when the user changes the option on the wifi dropdown
 static void wifi_dropdown_handler(lv_event_t * e)
 {
-    lv_event_code_t code = lv_event_get_code(e);
-    lv_obj_t * obj = lv_event_get_target_obj(e);
+  lv_event_code_t code = lv_event_get_code(e);
+  lv_obj_t * obj = lv_event_get_target_obj(e);
 
-    if(code == LV_EVENT_VALUE_CHANGED) {
-        uint16_t sel = lv_dropdown_get_selected(obj);
-
-        if(sel < NUMBER_WIFI_OPTIONS) {
-            snprintf(WIFI_SSID, sizeof(WIFI_SSID), "%s", WIFI_SSIDS[sel]);
-            snprintf(WIFI_PASSWORD, sizeof(WIFI_PASSWORD), "%s", WIFI_PASSWORDS[sel]);
-
-            LV_LOG_USER("Selected SSID: %s", WIFI_SSID);
-        }
-    }
+  if(code == LV_EVENT_VALUE_CHANGED) {
+    get_wifi_option();
+  }
 }
 
+// Creates the dropdown list that contains all of the wifi networks
+// saved in secrets.h
 void lv_dropdown(lv_obj_t* screen)
 {
     wifi_dropdown = lv_dropdown_create(screen);
@@ -768,6 +787,8 @@ void lv_dropdown(lv_obj_t* screen)
     lv_obj_add_flag(wifi_dropdown, LV_OBJ_FLAG_HIDDEN); // dropdown hidden initially
 }
 
+// called when the user presses the button with the wifi icon on the start page
+// shows or hides the dropdown list of wifi options
 static void wifi_icon_button_event(lv_event_t * e) {
   lv_event_code_t code = lv_event_get_code(e);
   if (code != LV_EVENT_CLICKED) return;
@@ -780,6 +801,7 @@ static void wifi_icon_button_event(lv_event_t * e) {
   }
 }
 
+// Creates the button with the wifi icon on the start page
 void lv_wifi_icon_button(lv_obj_t * screen) {
 
   // Small WiFi icon button, placed to the right of the ambient/session switch area
@@ -794,6 +816,7 @@ void lv_wifi_icon_button(lv_obj_t * screen) {
 }
 
 // Called when the user selects a radio button option
+// for changing the plot timescale
 static void event_radio_button(lv_event_t * e) {
   lv_obj_t * obj = lv_event_get_target_obj(e);
 
@@ -866,6 +889,7 @@ void lv_radio_buttons(lv_obj_t* screen) {
 }
 
 // Called when the Stop button is pressed
+// brings user back to the starting screen
 static void stop_button_event(lv_event_t * e) {
   lv_event_code_t code = lv_event_get_code(e);
   if(code == LV_EVENT_CLICKED) {
@@ -894,6 +918,7 @@ void lv_stop_button(lv_obj_t* screen) {
 
 }
 
+// converts unix time to a human-readable time stamp
 void convert_time(time_t t) {
   struct tm * timeinfo;
   timeinfo = localtime(&t); // converts to local time
@@ -903,6 +928,7 @@ void convert_time(time_t t) {
   strftime(time_text, sizeof(time_text), "%Y-%m-%d %I:%M:%S %p", timeinfo);
 }
 
+// Creates the text for the CO2 level, time, and errors
 void lv_data_text(lv_obj_t* screen) {
 
   // Text for the current CO2 level
@@ -910,16 +936,17 @@ void lv_data_text(lv_obj_t* screen) {
   lv_label_set_text(CO2_level_label, "");
   lv_obj_align_to(CO2_level_label, chart, LV_ALIGN_OUT_BOTTOM_LEFT, 40, 0);
 
+  // Text for the current time
   time_label = lv_label_create(screen);
   lv_label_set_text(time_label, "");
   lv_obj_align_to(time_label, chart, LV_ALIGN_OUT_BOTTOM_LEFT, -115, 0);
   lv_obj_set_width(time_label, 90);
 
+  // Text for the active error messages
   error_label = lv_label_create(screen);
   lv_label_set_text(error_label, "");
   lv_obj_align_to(error_label, chart, LV_ALIGN_OUT_BOTTOM_LEFT, -115, 60);
   lv_obj_set_style_text_color(error_label, lv_palette_main(LV_PALETTE_RED), 0);
-  //lv_obj_set_width(error_label, 90);
 
 }
 
@@ -935,7 +962,6 @@ void lv_create_main_gui(void) {
   lv_keyboard(start_screen);
   lv_switch(start_screen);
   lv_start_button(start_screen);
-  //lv_dropdown(start_screen);
   lv_wifi_icon_button(start_screen);
   lv_dropdown(start_screen);
 
@@ -949,7 +975,6 @@ void lv_create_main_gui(void) {
 
   // set the start screen as the active scren
   lv_scr_load(start_screen);
-  
   on_start_screen = true;
 }
 
@@ -990,8 +1015,8 @@ void update_plot() {
   snprintf(CO2_level_text, sizeof(CO2_level_text), "CO2 Level: %d (ppm)", (int32_t)CO2_value);
   lv_label_set_text(CO2_level_label, CO2_level_text);
 
+  // update the other texts
   lv_label_set_text(time_label, time_text);
-
   lv_label_set_text(error_label, error_text);
 
   lv_chart_refresh(chart);
@@ -1031,10 +1056,6 @@ void setup() {
 
   // Function to draw the GUI (text, buttons and sliders)
   lv_create_main_gui();
-
-  // Start WIFI connection
-  //initialize_wifi();
-
 }
 
 void loop() {
@@ -1058,9 +1079,6 @@ void loop() {
       // converted to microseconds
       float ppm = 5000.0 * (TH - 2000) / (TH + TL - 4000);
       ppm = constrain(ppm, 400, 5000); // the sensor's range is 400-5000 ppm
-      // Serial.print("CO2: ");
-      // Serial.print(ppm);
-      // Serial.println(" ppm");
       CO2_value = ppm;
 
       if (on_recording_screen) {
