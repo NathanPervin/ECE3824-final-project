@@ -9,6 +9,14 @@ class CO2Reading(models.Model):
     unix_timestamp = models.BigIntegerField()
     co2_ppm = models.IntegerField()
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['building']),
+            models.Index(fields=['building', 'room_number']),
+            models.Index(fields=['building', 'room_number', 'mode']),
+            models.Index(fields=['building', 'room_number', 'unix_timestamp']),
+        ]
+        
     def __str__(self):
         return json.dumps({
         "mode": self.mode,
