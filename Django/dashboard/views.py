@@ -98,8 +98,8 @@ def sessions(request, building, room):
         sessions.append({
         'mode':        session['mode'],
         'session_id':  session['session_id'],
-        'building':    session['building'],
-        'room_number': session['room_number'],
+        'building':    building,
+        'room_number': room,
         'start':       session['start'],
         'end':         session['end'],
         'count':       session['count'],

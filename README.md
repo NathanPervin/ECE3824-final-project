@@ -101,6 +101,9 @@ The 5-pin female pin header is secured by melting the plastic around it with a s
 
 * sessions in dashboard/views.py only returns UTC time regardless of user's timezone
 
+minor bug fixes
+* duration shows 4mins 59 secs instead of 5 mins for single upload (check if this error will accumulate)
+
 #### Info
 EC2 instance Django server running on:
 http://107.23.179.9:8000/
