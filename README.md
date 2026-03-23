@@ -99,6 +99,8 @@ The 5-pin female pin header is secured by melting the plastic around it with a s
 * check if its currently on by checking if the most recent timestamp is less than 5 mins, indicate that its the live data and not the most recent session/ambient
 * chart on first page should default to the most recent session, searching for a second would replace that plot with the data the user wants
 
+* sessions in dashboard/views.py only returns UTC time regardless of user's timezone
+
 #### Info
 EC2 instance Django server running on:
 http://107.23.179.9:8000/

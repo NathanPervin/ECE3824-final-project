@@ -8,6 +8,7 @@ class CO2Reading(models.Model):
     room_number = models.CharField(max_length=10)
     unix_timestamp = models.BigIntegerField()
     co2_ppm = models.IntegerField()
+    session_id = models.CharField(max_length=50, null=True, blank=True)
 
     class Meta:
         indexes = [
@@ -16,7 +17,7 @@ class CO2Reading(models.Model):
             models.Index(fields=['building', 'room_number', 'mode']),
             models.Index(fields=['building', 'room_number', 'unix_timestamp']),
         ]
-        
+
     def __str__(self):
         return json.dumps({
         "mode": self.mode,

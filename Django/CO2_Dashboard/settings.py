@@ -31,6 +31,9 @@ DEBUG = True
 ALLOWED_HOSTS = ['107.23.179.9', 'localhost', '127.0.0.1']
 CO2_API_TOKEN = os.environ.get("CO2_API_TOKEN")
 
+# Global variables, used many times in the program and may change
+SESSION_GAP_INTERVAL = 300 # seconds between two sessions to be considered distinct (from two different sessions)
+
 # Application definition
 
 INSTALLED_APPS = [
