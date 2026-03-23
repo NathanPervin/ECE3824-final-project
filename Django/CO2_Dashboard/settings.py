@@ -28,7 +28,7 @@ SECRET_KEY = 'django-insecure-fj6u_=kof7%nr=t#c)#5aufm(*qakn+idl!#-k054ynhb4io^^
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['107.23.179.9', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['107.23.179.9', 'ec2-107-23-179-9.compute-1.amazonaws.com', 'localhost', '127.0.0.1']
 CO2_API_TOKEN = os.environ.get("CO2_API_TOKEN")
 
 # Global variables, used many times in the program and may change
